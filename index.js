@@ -10,7 +10,7 @@ const Database = require("better-sqlite3");
 const { executablePath } = require("puppeteer");
 
 const app = express();
-const port = 8452;
+const port = 3000;
 
 // 1. Base de datos
 const db = new Database("./database/mensajes.db");
@@ -175,5 +175,5 @@ app.post("/logout", async (_req, res) => {
 });
 
 // 8. Arrancar servidor
-// app.listen(port, () => console.log(`🌐  http://localhost:${port}`));
-app.listen(8452, '0.0.0.0', () => console.log('Servidor corriendo en http://0.0.0.0:8452'));
+app.listen(port, () => console.log(`🌐  http://localhost:${port}`));
+// app.listen(3000, '0.0.0.0', () => console.log('Servidor corriendo en http://0.0.0.0:3000'));
