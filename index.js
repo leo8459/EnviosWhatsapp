@@ -175,4 +175,5 @@ app.post("/logout", async (_req, res) => {
 });
 
 // 8. Arrancar servidor
-app.listen(port, () => console.log(`🌐  http://localhost:${port}`));
+// app.listen(port, () => console.log(`🌐  http://localhost:${port}`));
+app.listen(3000, '0.0.0.0', () => console.log('Servidor corriendo en http://0.0.0.0:3000'));
