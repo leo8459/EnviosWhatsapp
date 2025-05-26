@@ -1,219 +1,289 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WhatsApp Bot</title>
 
     <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
 
     <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
 
     <style>
-        :root {
-            --surface: rgba(255,255,255,.85);
-            --radius : 1.25rem;
+      :root {
+        --surface: rgba(255, 255, 255, 0.85);
+        --radius: 1.25rem;
+      }
+
+      /* página */
+      /* … estilos anteriores … */
+
+      body {
+        /* 1️⃣  layout vertical  */
+        display: flex;
+        flex-direction: column; /* <— importante */
+        min-height: 100vh; /* ocupa todo el alto */
+
+        /* 2️⃣  fondo y fuente sin cambios */
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #e9f5ff 0%, #f4f8fb 50%, #fff 100%);
+      }
+
+      /* 3️⃣  centramos SOLO la tarjeta */
+      main {
+        flex: 1 0 auto; /* ocupa el espacio disponible */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem; /* el padding que ya tenías */
+      }
+
+      /* 4️⃣  el footer se queda al fondo */
+      footer {
+        flex-shrink: 0; /* no se encoge */
+        opacity: 0.6;
+      }
+
+      /* tarjeta de cristal */
+      .glass-card {
+        width: 100%;
+        max-width: 1200px; /* más ancha */
+        background: var(--surface);
+        backdrop-filter: blur(10px) saturate(180%);
+        -webkit-backdrop-filter: blur(10px) saturate(180%);
+        border: 1px solid rgba(200, 200, 200, 0.25);
+        border-radius: var(--radius);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      }
+
+      /* límite scroll mensajes */
+      #lista-mensajes {
+        max-height: 270px;
+        overflow-y: auto;
+      }
+
+      /* spinner utilitario */
+      .spin {
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        100% {
+          transform: rotate(360deg);
         }
+      }
 
-        /* página */
-        /* … estilos anteriores … */
+      /* QR responsivo */
+      #qr-container img {
+        max-width: 220px;
+      }
 
-body{
-    /* 1️⃣  layout vertical  */
-    display:flex;
-    flex-direction:column;      /* <— importante */
-    min-height:100vh;           /* ocupa todo el alto */
-    
-    /* 2️⃣  fondo y fuente sin cambios */
-    margin:0;
-    font-family:"Inter",sans-serif;
-    background:linear-gradient(135deg,#e9f5ff 0%,#f4f8fb 50%,#fff 100%);
-}
-
-/* 3️⃣  centramos SOLO la tarjeta */
-main{
-    flex:1 0 auto;              /* ocupa el espacio disponible */
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:2rem 1rem;          /* el padding que ya tenías */
-}
-
-/* 4️⃣  el footer se queda al fondo */
-footer{
-    flex-shrink:0;              /* no se encoge */
-    opacity:.6;
-}
-
-
-        /* tarjeta de cristal */
-        .glass-card{
-            width:100%;
-            max-width:1200px;            /* más ancha */
-            background:var(--surface);
-            backdrop-filter:blur(10px) saturate(180%);
-            -webkit-backdrop-filter:blur(10px) saturate(180%);
-            border:1px solid rgba(200,200,200,.25);
-            border-radius:var(--radius);
-            box-shadow:0 8px 24px rgba(0,0,0,.08);
-        }
-
-        /* límite scroll mensajes */
-        #lista-mensajes{max-height:270px;overflow-y:auto;}
-
-        /* spinner utilitario */
-        .spin{animation:spin 1s linear infinite;}
-        @keyframes spin{100%{transform:rotate(360deg);}}
-
-        /* QR responsivo */
-        #qr-container img{max-width:220px}
-
-        /* footer */
-        footer{opacity:.6}
+      /* footer */
+      footer {
+        opacity: 0.6;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <main class="glass-card p-4">
-        <!-- Cabecera general -->
+      <!-- Cabecera general -->
       <body class="d-flex flex-column min-vh-100">
-
-    <!-- Tarjeta principal -->
-    <main class="glass-card flex-fill d-flex align-items-center justify-content-center p-4">
-        <div class="container-fluid"><!-- 👉 pequeño wrapper para alinear todo -->
+        <!-- Tarjeta principal -->
+        <main
+          class="glass-card flex-fill d-flex align-items-center justify-content-center p-4"
+        >
+          <div class="container-fluid">
+            <!-- 👉 pequeño wrapper para alinear todo -->
 
             <!-- Cabecera -->
             <header class="d-flex align-items-center gap-2 mb-4">
-                <i class="bi bi-whatsapp fs-1 text-success"></i>
-                <h1 class="h3 fw-bold mb-0">WhatsApp Bot</h1>
+              <i class="bi bi-whatsapp fs-1 text-success"></i>
+              <h1 class="h3 fw-bold mb-0">WhatsApp Bot</h1>
             </header>
 
             <!-- Contenido -->
-            <div class="row gx-5 gy-4"><!--  g-x más amplio -->
-                <!-- Columna izquierda -->
-                <aside class="col-12 col-md-5 col-lg-4">
-                    <!-- Estado / QR -->
-                    <div id="qr-container" class="small text-muted pb-3">⏳ Cargando QR…</div>
+            <div class="row gx-5 gy-4">
+              <!--  g-x más amplio -->
+              <!-- Columna izquierda -->
+              <aside class="col-12 col-md-5 col-lg-4">
+                <!-- Estado / QR -->
+                <div id="qr-container" class="small text-muted pb-3">
+                  ⏳ Cargando QR…
+                </div>
 
-                    <h2 class="h6 fw-semibold mb-2">
-                        <i class="bi bi-pencil-square me-1"></i>Guardar mensaje
-                    </h2>
-                    <textarea id="nuevo-mensaje" class="form-control mb-2" rows="3"
-                              placeholder="Escribe tu mensaje aquí…"></textarea>
-                    <button class="btn btn-primary w-100 mb-4" onclick="guardarMensaje()">
-                        <i class="bi bi-save me-1"></i>Guardar
-                    </button>
+                <h2 class="h6 fw-semibold mb-2">
+                  <i class="bi bi-pencil-square me-1"></i>Guardar mensaje
+                </h2>
+                <textarea
+                  id="nuevo-mensaje"
+                  class="form-control mb-2"
+                  rows="3"
+                  placeholder="Escribe tu mensaje aquí…"
+                ></textarea>
+                <button
+                  class="btn btn-primary w-100 mb-4"
+                  onclick="guardarMensaje()"
+                >
+                  <i class="bi bi-save me-1"></i>Guardar
+                </button>
 
-                    <h2 class="h6 fw-semibold mb-2">
-                        <i class="bi bi-upload me-1"></i>Subir Excel
-                    </h2>
-                    <form id="upload-form" enctype="multipart/form-data" class="d-grid gap-2">
-                        <input type="file" name="excel" accept=".xlsx" class="form-control" required>
-                        <button type="submit" class="btn btn-success">
-                            <i class="bi bi-send-check me-1"></i>Enviar Mensajes
-                        </button>
-                    </form>
-                    <div id="envio-status" class="small text-center mt-2"></div>
-                </aside>
+                <h2 class="h6 fw-semibold mb-2">
+                  <i class="bi bi-upload me-1"></i>Subir Excel
+                </h2>
+                <form
+                  id="upload-form"
+                  enctype="multipart/form-data"
+                  class="d-grid gap-2"
+                >
+                  <input
+                    type="file"
+                    name="excel"
+                    accept=".xlsx"
+                    class="form-control"
+                    required
+                  />
+                  <button type="submit" class="btn btn-success">
+                    <i class="bi bi-send-check me-1"></i>Enviar Mensajes
+                  </button>
+                </form>
+                <div id="envio-status" class="small text-center mt-2"></div>
+              </aside>
 
-                <!-- Columna derecha -->
-                <section class="col-12 col-md-7 col-lg-8">
-                    <h2 class="h6 fw-semibold mb-2">
-                        <i class="bi bi-card-list me-1"></i>Mensajes guardados
-                    </h2>
-                    <ul id="lista-mensajes" class="list-group list-group-flush border rounded"
-                        style="max-height:270px;overflow-y:auto;"></ul>
-                </section>
+              <!-- Columna derecha -->
+              <section class="col-12 col-md-7 col-lg-8">
+                <h2 class="h6 fw-semibold mb-2">
+                  <i class="bi bi-card-list me-1"></i>Mensajes guardados
+                </h2>
+                <ul
+                  id="lista-mensajes"
+                  class="list-group list-group-flush border rounded"
+                  style="max-height: 270px; overflow-y: auto"
+                ></ul>
+              </section>
             </div>
-        </div>
-    </main>
+          </div>
+        </main>
 
-    <!-- Pie de página siempre abajo -->
-    <footer class="text-center py-3 small opacity-50">
-        &copy; <span id="year"></span> – Bots Corp
-    </footer>
-
-</body>
-
+        <!-- Pie de página siempre abajo -->
+        <footer class="text-center py-3 small opacity-50">
+          &copy; <span id="year"></span> – Bots Corp
+        </footer>
+      </body>
     </main>
 
     <footer class="w-100 text-center py-3 small">
-        &copy; <span id="year"></span> – Bots Corp
+      &copy; <span id="year"></span> – Bots Corp
     </footer>
 
     <!-- JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        /* año dinámico */
-        document.getElementById('year').textContent = new Date().getFullYear();
+      /* año dinámico */
+      document.getElementById("year").textContent = new Date().getFullYear();
 
-        /* QR polling */
-        async function mostrarQR(){
-            const interval=setInterval(async()=>{
-                const res=await fetch('/qr');
-                const data=await res.json();
-                if(data.status==='qr'){
-                    document.getElementById('qr-container').innerHTML=
-                      `<img src="${data.src}" alt="QR Code" class="img-thumbnail">`;
-                }else if(data.status==='connected'){
-                    clearInterval(interval);
-                    document.getElementById('qr-container').innerHTML=
-                      `<span class="text-success fw-semibold">
-                        <i class="bi bi-check-circle-fill me-1"></i>WhatsApp conectado
-                      </span>`;
-                }
-            },2000);
+      /* QR polling */
+      async function mostrarQR() {
+        const interval = setInterval(async () => {
+          const res = await fetch("/qr");
+          const data = await res.json();
+          if (data.status === "qr") {
+            document.getElementById(
+              "qr-container"
+            ).innerHTML = `<img src="${data.src}" alt="QR Code" class="img-thumbnail">`;
+          } else if (data.status === "connected") {
+            clearInterval(interval);
+           document.getElementById('qr-container').innerHTML = `
+  <div class="d-flex justify-content-between align-items-center">
+    <span class="text-success fw-semibold">
+      <i class="bi bi-check-circle-fill me-1"></i>WhatsApp conectado
+    </span>
+    <button class="btn btn-outline-danger btn-sm ms-3" onclick="desconectar()">
+      <i class="bi bi-box-arrow-right me-1"></i>Desconectar
+    </button>
+  </div>
+`;
+          }
+        }, 2000);
+      }
+
+      /* Guardar mensaje */
+      async function guardarMensaje() {
+        const texto = document.getElementById("nuevo-mensaje").value.trim();
+        if (!texto) return;
+        const res = await fetch("/mensajes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texto }),
+        });
+        const result = await res.json();
+        if (result.success) {
+          document.getElementById("nuevo-mensaje").value = "";
+          cargarMensajes();
         }
+      }
+  async function desconectar() {
+        const confirmacion = confirm("¿Estás seguro de cerrar sesión?");
+        if (!confirmacion) return;
 
-        /* Guardar mensaje */
-        async function guardarMensaje(){
-            const texto=document.getElementById('nuevo-mensaje').value.trim();
-            if(!texto) return;
-            const res=await fetch('/mensajes',{
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({texto})
-            });
-            const result=await res.json();
-            if(result.success){
-                document.getElementById('nuevo-mensaje').value='';
-                cargarMensajes();
-            }
+        const res = await fetch('/logout', { method: 'POST' });
+        const result = await res.json();
+
+        if (result.success) {
+            alert('Sesión cerrada exitosamente');
+            location.reload(); // O: window.location.href = "/"; si quieres redirigir al menú
+        } else {
+            alert('Error al cerrar sesión');
         }
+    }
+      /* Cargar listado */
+      async function cargarMensajes() {
+        const res = await fetch("/mensajes");
+        const mensajes = await res.json();
+        const lista = document.getElementById("lista-mensajes");
+        lista.innerHTML = "";
+        mensajes.forEach((m) => {
+          const li = document.createElement("li");
+          li.className = "list-group-item";
+          li.textContent = m.texto;
+          lista.appendChild(li);
+        });
+      }
 
-        /* Cargar listado */
-        async function cargarMensajes(){
-            const res=await fetch('/mensajes');
-            const mensajes=await res.json();
-            const lista=document.getElementById('lista-mensajes');
-            lista.innerHTML='';
-            mensajes.forEach(m=>{
-                const li=document.createElement('li');
-                li.className='list-group-item';
-                li.textContent=m.texto;
-                lista.appendChild(li);
-            });
-        }
-
-        /* Enviar Excel */
-        document.getElementById('upload-form').addEventListener('submit',async function(e){
-            e.preventDefault();
-            const formData=new FormData(this);
-            const status=document.getElementById('envio-status');
-            status.innerHTML='<span class="text-secondary"><i class="bi bi-arrow-repeat me-1 spin"></i>Enviando…</span>';
-            const response=await fetch('/enviar-excel',{method:'POST',body:formData});
-            const result=await response.json();
-            status.innerHTML=result.success
-              ?'<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Mensajes enviados.</span>'
-              :'<span class="text-danger"><i class="bi bi-x-circle-fill me-1"></i>Error al enviar.</span>';
+      /* Enviar Excel */
+      document
+        .getElementById("upload-form")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          const status = document.getElementById("envio-status");
+          status.innerHTML =
+            '<span class="text-secondary"><i class="bi bi-arrow-repeat me-1 spin"></i>Enviando…</span>';
+          const response = await fetch("/enviar-excel", {
+            method: "POST",
+            body: formData,
+          });
+          const result = await response.json();
+          status.innerHTML = result.success
+            ? '<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Mensajes enviados.</span>'
+            : '<span class="text-danger"><i class="bi bi-x-circle-fill me-1"></i>Error al enviar.</span>';
         });
 
-        /* Init */
-        mostrarQR();
-        cargarMensajes();
+      /* Init */
+      mostrarQR();
+      cargarMensajes();
     </script>
-</body>
+  </body>
 </html>
