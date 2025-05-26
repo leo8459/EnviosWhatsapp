@@ -205,7 +205,7 @@
             ).innerHTML = `<img src="${data.src}" alt="QR Code" class="img-thumbnail">`;
           } else if (data.status === "connected") {
             clearInterval(interval);
-           document.getElementById('qr-container').innerHTML = `
+            document.getElementById("qr-container").innerHTML = `
   <div class="d-flex justify-content-between align-items-center">
     <span class="text-success fw-semibold">
       <i class="bi bi-check-circle-fill me-1"></i>WhatsApp conectado
@@ -234,20 +234,20 @@
           cargarMensajes();
         }
       }
-  async function desconectar() {
+      async function desconectar() {
         const confirmacion = confirm("¿Estás seguro de cerrar sesión?");
         if (!confirmacion) return;
 
-        const res = await fetch('/logout', { method: 'POST' });
+        const res = await fetch("/logout", { method: "POST" });
         const result = await res.json();
 
         if (result.success) {
-            alert('Sesión cerrada exitosamente');
-            location.reload(); // O: window.location.href = "/"; si quieres redirigir al menú
+          alert("Sesión cerrada exitosamente");
+          location.reload(); // O: window.location.href = "/"; si quieres redirigir al menú
         } else {
-            alert('Error al cerrar sesión');
+          alert("Error al cerrar sesión");
         }
-    }
+      }
       /* Cargar listado */
       async function cargarMensajes() {
         const res = await fetch("/mensajes");
