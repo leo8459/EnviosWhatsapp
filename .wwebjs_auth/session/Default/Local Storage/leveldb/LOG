@@ -1,2 +1,6 @@
-2025/05/26-14:26:46.053 3c94 Creating DB C:\xampp\htdocs\EnviosWhatsapp\.wwebjs_auth\session\Default\Local Storage\leveldb since it was missing.
-2025/05/26-14:26:46.363 3c94 Reusing MANIFEST C:\xampp\htdocs\EnviosWhatsapp\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
+2025/06/03-11:06:34.948 38b8 Reusing MANIFEST C:\xampp\htdocs\EnviosWhatsapp\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
+2025/06/03-11:06:34.948 38b8 Recovering log #6
+2025/06/03-11:06:34.963 38b8 Reusing old log C:\xampp\htdocs\EnviosWhatsapp\.wwebjs_auth\session\Default\Local Storage\leveldb/000006.log 
+2025/06/03-11:08:43.084 48c4 Level-0 table #10: started
+2025/06/03-11:08:43.150 48c4 Level-0 table #10: 14459 bytes OK
+2025/06/03-11:08:43.196 48c4 Delete type=0 #6

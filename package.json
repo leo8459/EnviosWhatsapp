@@ -11,8 +11,11 @@
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "^11.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "multer": "^2.0.0",
+    "node-fetch": "^3.3.2",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "^1.28.0",
