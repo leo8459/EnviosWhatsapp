@@ -1,192 +1,236 @@
-// index.js
-require("dotenv").config();
+// index.js  – dos cuentas WA + doble endpoint de paquetes + manejo 401
+require('dotenv').config();
 
-const express = require("express");
-const cors = require("cors");
-const fetch = (...a) => import("node-fetch").then(({ default: f }) => f(...a));
-const { Client, LocalAuth } = require("whatsapp-web.js");
-const qrcode = require("qrcode");
-const multer = require("multer");
-const xlsx = require("xlsx");
-const fs = require("fs");
-const path = require("path");
-const Database = require("better-sqlite3");
-const { executablePath } = require("puppeteer");
+const express    = require('express');
+const cors       = require('cors');
+const fetch      = (...a) => import('node-fetch').then(({ default: f }) => f(...a));
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode     = require('qrcode');
+const multer     = require('multer');
+const xlsx       = require('xlsx');
+const fs         = require('fs');
+const path       = require('path');
+const Database   = require('better-sqlite3');
+const { executablePath } = require('puppeteer');
 
-const app = express();
 const PORT = process.env.PORT || 8452;
-const SESSION_FOLDER = process.env.SESSION_FOLDER || ".wwebjs_auth";
 
-/* ───── DB mensajes ───── */
-const db = new Database("./database/mensajes.db");
-db.prepare(
-  `CREATE TABLE IF NOT EXISTS mensajes(id INTEGER PRIMARY KEY AUTOINCREMENT, texto TEXT NOT NULL)`
-).run();
+/* ═════════ 1. CONFIGURACIÓN ═════════ */
+const API_BASE  = 'http://172.65.10.52';
+const API_TOKEN = 'eZMlItx6mQMNZjxoijEvf7K3pYvGGXMvEHmQcqvtlAPOEAPgyKDVOpyF7JP0ilbK';
 
-/* ───── Cliente WhatsApp ───── */
-let qrCodeData = null,
-  isClientReady = false;
-const client = new Client({
-  authStrategy: new LocalAuth({ dataPath: SESSION_FOLDER }),
-  puppeteer: {
-    headless: true,
-    executablePath: executablePath(),
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+const ACCOUNTS = {
+  wa1: {
+    sessionDir   : '.wwebjs_auth_1',
+    packagesPath : '/api/packagesRDD',
   },
-});
-client.on("qr", async (qr) => {
-  qrCodeData = await qrcode.toDataURL(qr);
-  console.log("📲 QR listo");
-});
-client.on("ready", () => {
-  isClientReady = true;
-  console.log("✅ WhatsApp conectado");
-});
-client.initialize();
+  wa2: {
+    sessionDir   : '.wwebjs_auth_2',
+    packagesPath : '/api/packagesUENCOMIENDAS',
+  },
+  wa3: {
+    sessionDir   : '.wwebjs_auth_3',
+    packagesPath : '/api/packagesUENCOMIENDAS',
+  },
+};
 
-/* ───── Middlewares ───── */
-app.use(cors({ origin: "*" }));
+/* ═════════ 2. BASE DE DATOS ═════════ */
+const db = new Database('./database/mensajes.db');
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS mensajes(
+    id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    texto TEXT NOT NULL
+  );
+`).run();
+
+/* ═════════ 3. CLIENTES WHATSAPP ═════════ */
+const clients = {}; // { wa1:{client,qr,ready}, wa2:{…} }
+
+for (const id of Object.keys(ACCOUNTS)) {
+  const c = new Client({
+    authStrategy: new LocalAuth({ dataPath: ACCOUNTS[id].sessionDir }),
+    puppeteer: {
+      headless: true,
+      executablePath: executablePath(),
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    },
+  });
+
+  clients[id] = { client: c, qr: null, ready: false };
+
+  c.on('qr', async qr => {
+    clients[id].qr = await qrcode.toDataURL(qr);
+    console.log(`📲 QR listo para ${id}`);
+  });
+  c.on('ready', () => {
+    clients[id].ready = true;
+    console.log(`✅ ${id} conectado`);
+  });
+
+  c.initialize();
+}
+
+/* ═════════ 4. APP EXPRESS ═════════ */
+const app = express();
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static("views"));
-app.use("/uploads", express.static("uploads"));
+app.use(express.static('views'));
+app.use('/uploads', express.static('uploads'));
 
-/* ───── Páginas ───── */
-app.get("/bot", (_req, res) =>
-  res.sendFile(path.join(__dirname, "views", "bot.html"))
-);
-app.get("/", (_req, res) => res.redirect("/bot"));
+/* helper */
+function st(acc, res) {
+  if (!clients[acc]) { res.status(404).json({ error:'Cuenta desconocida' }); return null; }
+  return clients[acc];
+}
 
-/* ───── QR / Health ───── */
-app.get("/qr", (_req, res) => {
-  if (qrCodeData && !isClientReady)
-    return res.json({ status: "qr", src: qrCodeData });
-  if (isClientReady) return res.json({ status: "connected" });
-  return res.json({ status: "pending" });
+/* ═════ 4A. ENDPOINTS POR CUENTA ═════ */
+
+/* QR & health */
+app.get('/:acc/qr', (req,res)=>{
+  const s = st(req.params.acc,res); if(!s) return;
+  if(s.ready)   return res.json({status:'connected'});
+  if(s.qr)      return res.json({status:'qr',src:s.qr});
+  res.json({status:'pending'});
 });
-app.get("/health", (_req, res) => res.json({ ready: isClientReady }));
-
-/* ───── CRUD mensajes ───── */
-app.post("/mensajes", (req, res) => {
-  const texto = (req.body?.texto || "").trim();
-  if (!texto) return res.status(400).json({ success: false });
-  db.prepare("INSERT INTO mensajes(texto) VALUES(?)").run(texto);
-  res.json({ success: true });
-});
-app.get("/mensajes", (_req, res) =>
-  res.json(db.prepare("SELECT * FROM mensajes").all())
-);
-app.delete("/mensajes/:id", (req, res) => {
-  db.prepare("DELETE FROM mensajes WHERE id=?").run(+req.params.id);
-  res.json({ success: true });
+app.get('/:acc/health', (req,res)=>{
+  const s=st(req.params.acc,res); if(!s) return;
+  res.json({ready:s.ready});
 });
 
-/* ───── Proxy paquetes (sin CORS) ───── */
-const API_TOKEN =
-  "eZMlItx6mQMNZjxoijEvf7K3pYvGGXMvEHmQcqvtlAPOEAPgyKDVOpyF7JP0ilbK";
-app.get("/packages", async (_req, res) => {
-  try {
-    const r = await fetch("http://172.65.10.52/api/packagesRDD", {
-      headers: { Authorization: `Bearer ${API_TOKEN}` },
-    });
-    if (!r.ok) throw new Error(r.status);
-    res.json(await r.json());
-  } catch (e) {
-    console.error("proxy /packages", e);
-    res.status(502).json({ ok: false });
+/* -------- PAQUETES (gestiona 401) -------- */
+async function fetchPackages(url){
+  /* 1º intento: Authorization: Bearer */
+  let r = await fetch(url,{
+          headers:{ Authorization:`Bearer ${API_TOKEN}`, Accept:'application/json' }});
+  if(r.status!==401) return r;                 // ok o error ≠401 → devolvemos
+
+  /* 2º intento: cabecera 'token' simple */
+  return fetch(url,{ headers:{ token:API_TOKEN, Accept:'application/json' }});
+}
+
+app.get('/:acc/packages', async (req,res)=>{
+  const acc=req.params.acc;
+  if(!ACCOUNTS[acc]) return res.status(404).json({error:'Cuenta desconocida'});
+
+  try{
+    const url=`${API_BASE}${ACCOUNTS[acc].packagesPath}`;
+    const r   = await fetchPackages(url);
+    const raw = await r.text();
+
+    if(!r.ok){
+      console.error('/packages', acc, r.status, raw.slice(0,200));
+      return res.status(r.status).json({ ok:false, status:r.status, message:raw.slice(0,200) });
+    }
+    res.type('json').send(raw);                // éxito
+  }catch(e){
+    console.error('/packages', acc, e.message);
+    res.status(502).json({ ok:false, error:e.message });
   }
 });
 
-/* ───── send único ───── */
-app.post("/send", async (req, res) => {
-  const { to, message } = req.body || {};
-  if (!/^\d{10,16}@c\.us$/.test(to || ""))
-    return res.status(400).json({ success: false, error: "num" });
-  if (!message?.trim())
-    return res.status(400).json({ success: false, error: "msg" });
-  if (!isClientReady)
-    return res.status(503).json({ success: false, error: "wa" });
-  try {
-    if (!(await client.isRegisteredUser(to)))
-      return res.json({ success: false, error: "noreg" });
-    await client.sendMessage(to, message.trim());
-    console.log(`✅ ${to} ← ${message}`);
-    res.json({ success: true });
-  } catch (e) {
-    console.error("/send", e);
-    res.status(500).json({ success: false });
+/* Enviar mensaje único */
+app.post('/:acc/send', async (req,res)=>{
+  const s=st(req.params.acc,res); if(!s) return;
+  if(!s.ready) return res.status(503).json({success:false,error:'wa'});
+
+  const {to,message}=req.body||{};
+  if(!/^\d{10,16}@c\.us$/.test(to||''))   return res.status(400).json({success:false,error:'num'});
+  if(!message?.trim())                    return res.status(400).json({success:false,error:'msg'});
+
+  try{
+    if(!(await s.client.isRegisteredUser(to))) return res.json({success:false,error:'noreg'});
+    await s.client.sendMessage(to,message.trim());
+    console.log(`✅ [${req.params.acc}] ${to} ← ${message}`);
+    res.json({success:true});
+  }catch(e){
+    console.error('/send',req.params.acc,e);
+    res.status(500).json({success:false});
   }
 });
 
-/* ───── Excel masivo (sin cambios) ───── */
-const upload = multer({ dest: "uploads/" });
-app.post("/enviar-excel", upload.single("excel"), async (req, res) => {
-  try {
-    const wb = xlsx.readFile(req.file.path);
+/* Logout */
+app.post('/:acc/logout', async (req,res)=>{
+  const s=st(req.params.acc,res); if(!s) return;
+  try{
+    await s.client.logout();
+    fs.rmSync(ACCOUNTS[req.params.acc].sessionDir,{recursive:true,force:true});
+    s.ready=false; s.qr=null;
+    res.json({success:true});
+  }catch{ res.json({success:false}); }
+});
+
+/* ═════ 4B. ENDPOINTS COMUNES ═════ */
+
+/* CRUD mensajes */
+app.post('/mensajes',(req,res)=>{
+  const texto=(req.body?.texto||'').trim();
+  if(!texto) return res.status(400).json({success:false});
+  db.prepare('INSERT INTO mensajes(texto) VALUES(?)').run(texto);
+  res.json({success:true});
+});
+app.get('/mensajes',(_req,res)=>
+  res.json(db.prepare('SELECT * FROM mensajes').all())
+);
+app.delete('/mensajes/:id',(req,res)=>{
+  db.prepare('DELETE FROM mensajes WHERE id=?').run(+req.params.id);
+  res.json({success:true});
+});
+
+/* Excel → usa wa1 por defecto */
+const upload=multer({dest:'uploads/'});
+app.post('/enviar-excel',upload.single('excel'),async(req,res)=>{
+  const s=clients.wa1;
+  if(!s.ready) return res.json({success:false,message:'wa no lista'});
+
+  try{
+    const wb   = xlsx.readFile(req.file.path);
     const rows = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-    const base = db
-      .prepare("SELECT texto FROM mensajes")
-      .all()
-      .map((r) => r.texto)
-      .filter(Boolean);
-    if (!base.length)
-      return res.json({ success: false, message: "No hay mensajes" });
-    let bag = [...base];
-    const pick = () => {
-      if (!bag.length) bag = [...base];
-      return bag.splice(Math.floor(Math.random() * bag.length), 1)[0];
-    };
-    const nums = rows
-      .map((r) => r.TELEFONO?.toString().trim())
-      .filter((t) => /^\d{7,15}$/.test(t || ""))
-      .map((t) => `591${t}@c.us`);
-    if (!nums.length)
-      return res.json({ success: false, message: "Excel sin números" });
-    console.log("🚀 envíos:", nums.length);
-    let i = 0;
-    const go = async () => {
-      const n = nums[i];
-      if (await client.isRegisteredUser(n)) {
-        await client.sendMessage(n, pick());
-        console.log("✅", n);
+    const base = db.prepare('SELECT texto FROM mensajes').all()
+                   .map(r=>r.texto).filter(Boolean);
+    if(!base.length) return res.json({success:false,message:'No hay mensajes'});
+
+    let bag=[...base];
+    const pick=()=>{ if(!bag.length) bag=[...base];
+                     return bag.splice(Math.floor(Math.random()*bag.length),1)[0]; };
+
+    const nums=rows.map(r=>r.TELEFONO?.toString().trim())
+                   .filter(t=>/^\d{7,15}$/.test(t||''))
+                   .map(t=>`591${t}@c.us`);
+    if(!nums.length) return res.json({success:false,message:'Excel sin números'});
+
+    console.log('🚀 envíos:',nums.length);
+    let i=0;
+    const go=async()=>{
+      const n=nums[i];
+      if(await s.client.isRegisteredUser(n)){
+        await s.client.sendMessage(n,pick());
+        console.log('✅',n);
       }
       i++;
-      if (i < nums.length)
-        setTimeout(go, (Math.floor(Math.random() * 5) + 1) * 60000);
-      else console.log("🏁 fin Excel");
+      if(i<nums.length) setTimeout(go,(Math.floor(Math.random()*5)+1)*60000);
+      else console.log('🏁 fin Excel');
     };
     go();
     fs.unlinkSync(req.file.path);
-    res.json({ success: true });
-  } catch (e) {
-    console.error("Excel", e);
-    res.json({ success: false });
+    res.json({success:true});
+  }catch(e){
+    console.error('Excel',e);
+    res.json({success:false});
   }
 });
 
-/* ───── logout ───── */
-app.post("/logout", async (_req, res) => {
-  try {
-    await client.logout();
-    if (fs.existsSync(SESSION_FOLDER))
-      fs.rmSync(SESSION_FOLDER, { recursive: true, force: true });
-    isClientReady = false;
-    qrCodeData = null;
-    res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false });
-  }
-});
+/* ═════════ 5. VISTAS ═════════ */
+app.get('/wa1',(_req,res)=>res.sendFile(path.join(__dirname,'views','bot-wa1.html')));
+app.get('/wa2',(_req,res)=>res.sendFile(path.join(__dirname,'views','bot-wa2.html')));
+app.get('/wa3',(_req,res)=>res.sendFile(path.join(__dirname,'views','bot-wa3.html')));
+app.get('/',(_req,res)=>res.sendFile(path.join(__dirname,'views','index.html')));
 
-/* ───── start / graceful ───── */
-const server = app.listen(PORT, () =>
-  console.log(`🌐  http://localhost:${PORT}`)
-);
-process.on("SIGINT", async () => {
-  console.log("\n⏻ cerrando…");
-  try {
-    await client.destroy();
-  } catch {}
-  server.close(() => process.exit(0));
+/* ═════════ 6. SERVER ═════════ */
+const server=app.listen(PORT,()=>console.log(`🌐  http://localhost:${PORT}`));
+process.on('SIGINT',async()=>{
+  console.log('\n⏻ cerrando…');
+  try{ for(const {client} of Object.values(clients)) await client.destroy(); }catch{}
+  server.close(()=>process.exit(0));
 });
-process.on("unhandledRejection", (e) => console.error(e));
+process.on('unhandledRejection',e=>console.error(e));
