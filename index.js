@@ -12,6 +12,8 @@ const fs         = require('fs');
 const path       = require('path');
 const Database   = require('better-sqlite3');
 const { executablePath } = require('puppeteer');
+const cron = require('node-cron');
+const moment = require('moment-timezone');
 
 const PORT = process.env.PORT || 8452;
 
@@ -83,6 +85,89 @@ function st(acc, res) {
   if (!clients[acc]) { res.status(404).json({ error:'Cuenta desconocida' }); return null; }
   return clients[acc];
 }
+/* ═════ ENVÍO PROGRAMADO DIARIO ═════ */
+let scheduledQueues = {
+  wa1: [],
+  wa2: [],
+  wa3: []
+};
+let isSending = {
+  wa1: false,
+  wa2: false,
+  wa3: false
+};
+
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+async function cargarNumerosDesdeAPI(accountId) {
+  try {
+    const url = `${API_BASE}${ACCOUNTS[accountId].packagesPath}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${API_TOKEN}`, Accept: 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error('Respuesta no es un array');
+
+    // Orden descendente
+    const listaOrdenada = [...data].reverse();
+
+    scheduledQueues[accountId] = listaOrdenada
+      .map(r => r.TELEFONO?.toString().trim())
+      .filter(t => /^\d{7,15}$/.test(t))
+      .map(t => `591${t}@c.us`);
+
+    console.log(`📦 ${accountId}: ${scheduledQueues[accountId].length} números cargados`);
+
+  } catch (e) {
+    console.error(`❌ ${accountId}: error al cargar API –`, e.message);
+    scheduledQueues[accountId] = [];
+  }
+}
+
+
+async function startScheduledSending(accountId) {
+  const clientObj = clients[accountId];
+  if (!clientObj || !clientObj.ready) return console.log(`⚠️ ${accountId} no está listo`);
+
+  const mensajes = db.prepare('SELECT texto FROM mensajes ORDER BY id DESC').all().map(r => r.texto).filter(Boolean);
+  if (!mensajes.length) return console.log(`⚠️ ${accountId} sin mensajes`);
+
+  const lista = [...scheduledQueues[accountId]];
+  if (!lista.length) return console.log(`⚠️ ${accountId} lista vacía`);
+
+  console.log(`🚀 Iniciando envío para ${accountId} (${lista.length} números)`);
+
+  let bag = [...mensajes];
+  const pick = () => { if (!bag.length) bag = [...mensajes]; return bag.splice(Math.floor(Math.random() * bag.length), 1)[0]; };
+
+  isSending[accountId] = true;
+
+  for (let i = 0; i < lista.length; i++) {
+    const number = lista[i];
+    const msg = pick();
+    try {
+      if (await clientObj.client.isRegisteredUser(number)) {
+        await clientObj.client.sendMessage(number, msg);
+        console.log(`✅ [${accountId}] Mensaje ${i + 1} enviado a ${number} – "${msg}"`);
+      } else {
+        console.log(`⛔ [${accountId}] No registrado: ${number}`);
+      }
+    } catch (err) {
+      console.error(`❌ [${accountId}] Error al enviar a ${number}:`, err.message);
+    }
+    const baseWait = 180000;
+    const extra = Math.floor(Math.random() * 120000);
+    await wait(baseWait + extra);
+  }
+
+  isSending[accountId] = false;
+  scheduledQueues[accountId] = [];
+  console.log(`🏁 ${accountId} envío terminado.`);
+}
+
 
 /* ═════ 4A. ENDPOINTS POR CUENTA ═════ */
 
@@ -163,6 +248,13 @@ app.post('/:acc/logout', async (req,res)=>{
 /* ═════ 4B. ENDPOINTS COMUNES ═════ */
 
 /* CRUD mensajes */
+app.post('/scheduled-prelista', (req, res) => {
+  const { numeros } = req.body;
+  if (!Array.isArray(numeros)) return res.status(400).json({ success: false });
+  scheduledQueue = numeros.filter(n => /^\d{10,16}@c\.us$/.test(n));
+  res.json({ success: true, total: scheduledQueue.length });
+});
+
 app.post('/mensajes',(req,res)=>{
   const texto=(req.body?.texto||'').trim();
   if(!texto) return res.status(400).json({success:false});
@@ -219,6 +311,29 @@ app.post('/enviar-excel',upload.single('excel'),async(req,res)=>{
     res.json({success:false});
   }
 });
+
+
+cron.schedule('* * * * *', async () => {
+  const now = moment().tz('America/La_Paz');
+  const hour = now.hour();
+  const minute = now.minute();
+
+  if ((hour > 15 || (hour === 15 && minute >= 27)) && hour < 17) {
+    for (const acc of Object.keys(ACCOUNTS)) {
+      if (!isSending[acc]) {
+        await cargarNumerosDesdeAPI(acc);
+        if (scheduledQueues[acc].length > 0) {
+          console.log(`🕒 ${acc}: iniciando envío ${hour}:${minute < 10 ? '0'+minute : minute}`);
+          startScheduledSending(acc);
+        } else {
+          console.log(`ℹ️ ${acc}: sin números para enviar`);
+        }
+      }
+    }
+  }
+});
+
+
 
 /* ═════════ 5. VISTAS ═════════ */
 app.get('/wa1',(_req,res)=>res.sendFile(path.join(__dirname,'views','bot-wa1.html')));
