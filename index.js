@@ -248,12 +248,26 @@ app.post('/:acc/logout', async (req,res)=>{
 /* ═════ 4B. ENDPOINTS COMUNES ═════ */
 
 /* CRUD mensajes */
-app.post('/scheduled-prelista', (req, res) => {
-  const { numeros } = req.body;
-  if (!Array.isArray(numeros)) return res.status(400).json({ success: false });
-  scheduledQueue = numeros.filter(n => /^\d{10,16}@c\.us$/.test(n));
-  res.json({ success: true, total: scheduledQueue.length });
+app.post('/:acc/prelista', async (req, res) => {
+  const acc = req.params.acc;
+  if (!ACCOUNTS[acc]) return res.status(404).json({ ok:false, error:'Cuenta desconocida' });
+
+  // admite "numeros" o "numeros[]"
+  let nums = req.body.numeros || req.body['numeros[]'] || [];
+  if (!Array.isArray(nums)) nums = [nums];      // por si viene un solo string
+
+  nums = nums.filter(n => /^\d{10,16}@c\.us$/.test(n));
+
+  if (!nums.length) return res.status(400).json({ ok:false, error:'Lista vacía' });
+
+  scheduledQueues[acc] = nums;
+  console.log(`📋 Recibida prelista (${nums.length}) para ${acc}`);
+
+  if (clients[acc]?.ready && !isSending[acc]) startScheduledSending(acc);
+
+  res.json({ ok:true, total:nums.length });
 });
+
 
 app.post('/mensajes',(req,res)=>{
   const texto=(req.body?.texto||'').trim();
@@ -313,25 +327,25 @@ app.post('/enviar-excel',upload.single('excel'),async(req,res)=>{
 });
 
 
-cron.schedule('* * * * *', async () => {
-  const now = moment().tz('America/La_Paz');
-  const hour = now.hour();
-  const minute = now.minute();
+// cron.schedule('* * * * *', async () => {
+//   const now = moment().tz('America/La_Paz');
+//   const hour = now.hour();
+//   const minute = now.minute();
 
-  if ((hour > 15 || (hour === 15 && minute >= 27)) && hour < 17) {
-    for (const acc of Object.keys(ACCOUNTS)) {
-      if (!isSending[acc]) {
-        await cargarNumerosDesdeAPI(acc);
-        if (scheduledQueues[acc].length > 0) {
-          console.log(`🕒 ${acc}: iniciando envío ${hour}:${minute < 10 ? '0'+minute : minute}`);
-          startScheduledSending(acc);
-        } else {
-          console.log(`ℹ️ ${acc}: sin números para enviar`);
-        }
-      }
-    }
-  }
-});
+//   if ((hour > 23 || (hour === 15 && minute >= 27)) && hour < 17) {
+//     for (const acc of Object.keys(ACCOUNTS)) {
+//       if (!isSending[acc]) {
+//         await cargarNumerosDesdeAPI(acc);
+//         if (scheduledQueues[acc].length > 0) {
+//           console.log(`🕒 ${acc}: iniciando envío ${hour}:${minute < 10 ? '0'+minute : minute}`);
+//           startScheduledSending(acc);
+//         } else {
+//           console.log(`ℹ️ ${acc}: sin números para enviar`);
+//         }
+//       }
+//     }
+//   }
+// });
 
 
 
