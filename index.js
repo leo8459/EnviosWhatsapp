@@ -34,6 +34,10 @@ const ACCOUNTS = {
     sessionDir   : '.wwebjs_auth_3',
     packagesPath : '/api/packagesUENCOMIENDAS',
   },
+  sc1: {
+    sessionDir   : '.wwebjs_sc_1',
+    packagesPath : '/api/packagesUENCOMIENDAS',
+  },
 };
 
 /* ═════════ 2. BASE DE DATOS ═════════ */
@@ -46,7 +50,7 @@ db.prepare(`
 `).run();
 
 /* ═════════ 3. CLIENTES WHATSAPP ═════════ */
-const clients = {}; // { wa1:{client,qr,ready}, wa2:{…} }
+const clients = {}; 
 
 for (const id of Object.keys(ACCOUNTS)) {
   const c = new Client({
@@ -89,12 +93,16 @@ function st(acc, res) {
 let scheduledQueues = {
   wa1: [],
   wa2: [],
-  wa3: []
+  wa3: [],
+    sc1: [],
+
 };
 let isSending = {
   wa1: false,
   wa2: false,
-  wa3: false
+  wa3: false,
+    sc1: false,
+
 };
 
 
@@ -353,6 +361,7 @@ app.post('/enviar-excel',upload.single('excel'),async(req,res)=>{
 app.get('/wa1',(_req,res)=>res.sendFile(path.join(__dirname,'views','bot-wa1.html')));
 app.get('/wa2',(_req,res)=>res.sendFile(path.join(__dirname,'views','bot-wa2.html')));
 app.get('/wa3',(_req,res)=>res.sendFile(path.join(__dirname,'views','bot-wa3.html')));
+app.get('/sc1',(_req,res)=>res.sendFile(path.join(__dirname,'views','sc1.html')));
 app.get('/',(_req,res)=>res.sendFile(path.join(__dirname,'views','index.html')));
 
 /* ═════════ 6. SERVER ═════════ */
