@@ -1,3 +1,2 @@
-2025/07/02-09:57:23.487 3c58 Reusing MANIFEST C:\xampp\htdocs\EnviosWhatsapp\.wwebjs_auth_2\session\Default\Service Worker\Database/MANIFEST-000001
-2025/07/02-09:57:23.524 3c58 Recovering log #3
-2025/07/02-09:57:23.524 3c58 Reusing old log C:\xampp\htdocs\EnviosWhatsapp\.wwebjs_auth_2\session\Default\Service Worker\Database/000003.log 
+2025/09/15-18:11:46.954 377c Creating DB C:\xampp\htdocs\EnviosWhatsapp\.wwebjs_auth_2\session\Default\Service Worker\Database since it was missing.
+2025/09/15-18:11:48.138 377c Reusing MANIFEST C:\xampp\htdocs\EnviosWhatsapp\.wwebjs_auth_2\session\Default\Service Worker\Database/MANIFEST-000001
