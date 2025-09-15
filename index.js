@@ -18,7 +18,7 @@ const moment = require('moment-timezone');
 const PORT = process.env.PORT || 8452;
 
 /* ═════════ 1. CONFIGURACIÓN ═════════ */
-const API_BASE  = 'http://172.65.10.52';
+const API_BASE  = 'http://172.65.10.52:8000';
 const API_TOKEN = 'eZMlItx6mQMNZjxoijEvf7K3pYvGGXMvEHmQcqvtlAPOEAPgyKDVOpyF7JP0ilbK';
 
 const ACCOUNTS = {
@@ -112,28 +112,42 @@ function wait(ms) {
 async function cargarNumerosDesdeAPI(accountId) {
   try {
     const url = `${API_BASE}${ACCOUNTS[accountId].packagesPath}`;
+    console.log(`🌐 Solicitando datos desde: ${url}`);
+
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${API_TOKEN}`, Accept: 'application/json' }
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        Accept: 'application/json'
+      }
     });
-    if (!res.ok) throw new Error(`Status ${res.status}`);
-    const data = await res.json();
-    if (!Array.isArray(data)) throw new Error('Respuesta no es un array');
 
-    // Orden descendente
+    const contentType = res.headers.get('content-type') || '';
+    const raw = await res.text();
+
+    console.log(`🔎 [${accountId}] Status: ${res.status}`);
+    console.log(`🔎 [${accountId}] Content-Type: ${contentType}`);
+    console.log(`🔎 [${accountId}] Body (inicio): ${raw.slice(0, 200)}\n`);
+
+    if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
+
+    // Intenta parsear como JSON solo si es JSON real
+    const data = contentType.includes('application/json') ? JSON.parse(raw) : [];
+
+    if (!Array.isArray(data)) throw new Error('La respuesta no es un array');
+
     const listaOrdenada = [...data].reverse();
-
     scheduledQueues[accountId] = listaOrdenada
       .map(r => r.TELEFONO?.toString().trim())
       .filter(t => /^\d{7,15}$/.test(t))
       .map(t => `591${t}@c.us`);
 
     console.log(`📦 ${accountId}: ${scheduledQueues[accountId].length} números cargados`);
-
   } catch (e) {
     console.error(`❌ ${accountId}: error al cargar API –`, e.message);
     scheduledQueues[accountId] = [];
   }
 }
+
 
 
 async function startScheduledSending(accountId) {
