@@ -205,7 +205,7 @@ async function startScheduledSending(accountId) {
     const msg = pick();
     try {
       if (await clientObj.client.isRegisteredUser(number)) {
-        await clientObj.client.sendMessage(number, msg);
+        await clientObj.client.sendMessage(number, msg, { sendSeen: false });
         console.log(`✅ [${accountId}] ${i + 1}/${lista.length} → ${number}`);
       } else {
         console.log(`⛔ [${accountId}] No registrado: ${number}`);
@@ -287,7 +287,7 @@ app.post('/:acc/send', async (req, res) => {
 
   try {
     if (!(await s.client.isRegisteredUser(to))) return res.json({ success: false, error: 'not_registered' });
-    await s.client.sendMessage(to, message.trim());
+    await s.client.sendMessage(to, message.trim(), { sendSeen: false });
     console.log(`✅ [${req.params.acc}] ${to}`);
     res.json({ success: true });
   } catch (e) {
@@ -349,7 +349,7 @@ app.post('/enviar-excel', upload.single('excel'), async (req, res) => {
       const n = nums[i];
       try {
         if (await s.client.isRegisteredUser(n)) {
-          await s.client.sendMessage(n, pick());
+          await s.client.sendMessage(n, pick(), { sendSeen: false });
           console.log('✅', n);
         }
       } catch (e) { console.error('Excel send error:', e.message); }
