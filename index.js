@@ -11,9 +11,7 @@ const xlsx       = require('xlsx');
 const fs         = require('fs');
 const path       = require('path');
 const Database   = require('better-sqlite3');
-// ⚠️ No forzar executablePath en Windows; evita "Execution context was destroyed"
-// const { executablePath } = require('puppeteer');
-const moment     = require('moment-timezone');
+// const moment  = require('moment-timezone'); // úsalo si lo necesitas
 
 // ====== 1) Config embebida (sin .env) ======
 const PORT      = 8452;
@@ -33,6 +31,7 @@ const ACCOUNTS = {
 };
 
 // ====== 2) DB mínima para mensajes ======
+fs.mkdirSync(path.join(__dirname, 'database'), { recursive: true });
 const db = new Database('./database/mensajes.db');
 db.prepare(`
   CREATE TABLE IF NOT EXISTS mensajes(
@@ -41,20 +40,32 @@ db.prepare(`
   );
 `).run();
 
-// ====== 3) Clientes WhatsApp (headless y sin executablePath) ======
+// ====== 3) Estado global ======
 const clients = {};
 let scheduledQueues = { wa1: [], wa2: [], wa3: [], sc1: [] };
 let isSending       = { wa1: false, wa2: false, wa3: false, sc1: false };
 
+// Detecta la ruta de Chromium en Debian
+function getChromiumPath() {
+  const candidates = ['/usr/bin/chromium', '/usr/bin/chromium-browser'];
+  for (const c of candidates) {
+    try { if (fs.existsSync(c)) return c; } catch {}
+  }
+  console.warn('⚠️ No se encontró /usr/bin/chromium ni chromium-browser; Puppeteer intentará su valor por defecto');
+  return undefined;
+}
+const CHROME_PATH = getChromiumPath();
+
+// ====== 4) Clientes WhatsApp ======
 function initClient(id) {
   const c = new Client({
     authStrategy: new LocalAuth({
       dataPath: ACCOUNTS[id].sessionDir,
-      // clientId: id, // opcional
+      clientId: id, // importante para que no se mezclen
     }),
     puppeteer: {
-      headless: HEADLESS,           // <- NO abre ventana
-      // executablePath: executablePath(), // ❌ No forzar
+      headless: HEADLESS,
+      executablePath: CHROME_PATH,   // ✅ Debian lo necesita (si existe)
       protocolTimeout: 120000,
       args: [
         '--no-sandbox',
@@ -70,7 +81,7 @@ function initClient(id) {
 
   clients[id] = { client: c, qr: null, ready: false, state: 'INIT', authed: false };
 
-  // QR -> DataURL para que la vista lo pinte con /:acc/qr
+  // Eventos
   c.on('qr', async (qr) => {
     try {
       clients[id].qr = await qrcode.toDataURL(qr);
@@ -83,11 +94,11 @@ function initClient(id) {
 
   c.on('authenticated', () => {
     clients[id].authed = true;
-    clients[id].qr = null; // oculta QR
+    clients[id].qr = null;
     console.log(`🔐 [${id}] authenticated`);
   });
 
-  c.on('ready', async () => {
+  c.on('ready', () => {
     clients[id].ready = true;
     clients[id].qr = null;
     clients[id].state = 'CONNECTED';
@@ -96,9 +107,8 @@ function initClient(id) {
 
   c.on('change_state', (state) => {
     clients[id].state = state;
-    const connected = state === 'CONNECTED';
-    clients[id].ready = connected;
-    if (connected) clients[id].qr = null;
+    clients[id].ready = state === 'CONNECTED';
+    if (clients[id].ready) clients[id].qr = null;
     console.log(`🔄 [${id}] state: ${state}`);
   });
 
@@ -113,13 +123,12 @@ function initClient(id) {
     clients[id].ready = false;
     clients[id].state = 'DISCONNECTED';
     console.warn(`⚠️ [${id}] desconectado: ${reason}`);
-    // Reintento suave
     setTimeout(() => {
       try { c.initialize(); } catch (e) { console.error(`[${id}] reinit error:`, e.message); }
     }, 5000);
   });
 
-  // Watchdog: cada 5s consultamos el estado real
+  // Watchdog
   setInterval(async () => {
     try {
       const st = await c.getState(); // CONNECTED | OPENING | PAIRING | TIMEOUT | CONFLICT | UNLAUNCHED
@@ -136,10 +145,9 @@ function initClient(id) {
     }, 5000);
   });
 }
-
 for (const id of Object.keys(ACCOUNTS)) initClient(id);
 
-// ====== 4) Express/API ======
+// ====== 5) Express/API ======
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(express.json());
@@ -214,7 +222,7 @@ async function startScheduledSending(accountId) {
   console.log(`🏁 ${accountId} envío terminado.`);
 }
 
-// ===== 4A) Endpoints por cuenta (QR/health/state/paquetes/send/logout) =====
+// ===== 5A) Endpoints por cuenta (QR/health/state/paquetes/send/logout) =====
 
 // QR para tus vistas (polling cada 2s desde el front)
 app.get('/:acc/qr', (req, res) => {
@@ -301,7 +309,7 @@ app.post('/:acc/logout', async (req, res) => {
   }
 });
 
-// ===== 4B) Endpoints comunes (mensajes + Excel) =====
+// ===== 5B) Endpoints comunes (mensajes + Excel) =====
 app.post('/mensajes', (req, res) => {
   const texto = (req.body?.texto || '').trim();
   if (!texto) return res.status(400).json({ success: false });
@@ -359,14 +367,14 @@ app.post('/enviar-excel', upload.single('excel'), async (req, res) => {
   }
 });
 
-// ====== 5) Vistas (usa tus HTML por cuenta) ======
+// ====== 6) Vistas (usa tus HTML por cuenta) ======
 app.get('/wa1', (_req, res) => res.sendFile(path.join(__dirname, 'views', 'bot-wa1.html')));
 app.get('/wa2', (_req, res) => res.sendFile(path.join(__dirname, 'views', 'bot-wa2.html')));
 app.get('/wa3', (_req, res) => res.sendFile(path.join(__dirname, 'views', 'bot-wa3.html')));
 app.get('/sc1', (_req, res) => res.sendFile(path.join(__dirname, 'views', 'sc1.html')));
 app.get('/',   (_req, res) => res.sendFile(path.join(__dirname, 'views', 'index.html')));
 
-// ====== 6) Server & señales ======
+// ====== 7) Server & señales ======
 const server = app.listen(PORT, () => console.log(`🌐  http://localhost:${PORT}`));
 
 process.on('SIGINT', async () => {
