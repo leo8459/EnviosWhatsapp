@@ -58,26 +58,41 @@ const CHROME_PATH = getChromiumPath();
 
 // ====== 4) Clientes WhatsApp ======
 function initClient(id) {
-  const c = new Client({
-    authStrategy: new LocalAuth({
-      dataPath: ACCOUNTS[id].sessionDir,
-      clientId: id, // importante para que no se mezclen
-    }),
-    puppeteer: {
-      headless: HEADLESS,
-      executablePath: CHROME_PATH,   // ✅ Debian lo necesita (si existe)
-      protocolTimeout: 120000,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu'
-      ],
-    },
-  });
+ const c = new Client({
+  authStrategy: new LocalAuth({
+    dataPath: ACCOUNTS[id].sessionDir,
+    clientId: id,
+  }),
+
+  // 👇 Añade estas banderas para manejo de sesiones y versión web
+  restartOnAuthFail: true,
+  takeoverOnConflict: true,
+  takeoverTimeoutMs: 0,
+
+  // 👇 Usa un cache remoto de la versión Web para evitar incompatibilidades
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html'
+  },
+  // (Opcional) Si siguiera fallando, fija una versión concreta:
+  // webVersion: '2.3000.1027127011',
+
+  puppeteer: {
+    headless: HEADLESS,
+    executablePath: CHROME_PATH,
+    protocolTimeout: 120000,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu'
+    ],
+  },
+});
+
 
   clients[id] = { client: c, qr: null, ready: false, state: 'INIT', authed: false };
 
