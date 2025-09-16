@@ -45,6 +45,10 @@ const clients = {};
 let scheduledQueues = { wa1: [], wa2: [], wa3: [], sc1: [] };
 let isSending       = { wa1: false, wa2: false, wa3: false, sc1: false };
 
+// Base ABSOLUTA para sesiones (robusto con PM2)
+const SESSIONS_DIR = path.resolve(__dirname, 'sessions');
+fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+
 // Detecta la ruta de Chromium en Debian
 function getChromiumPath() {
   const candidates = ['/usr/bin/chromium', '/usr/bin/chromium-browser'];
@@ -58,43 +62,47 @@ const CHROME_PATH = getChromiumPath();
 
 // ====== 4) Clientes WhatsApp ======
 function initClient(id) {
- const c = new Client({
-  authStrategy: new LocalAuth({
-    dataPath: ACCOUNTS[id].sessionDir,
-    clientId: id,
-  }),
+  const c = new Client({
+    authStrategy: new LocalAuth({
+      dataPath: SESSIONS_DIR, // base común absoluta
+      clientId: id,           // separa por cliente: session-wa1, session-wa2...
+    }),
 
-  // 👇 Añade estas banderas para manejo de sesiones y versión web
-  restartOnAuthFail: true,
-  takeoverOnConflict: true,
-  takeoverTimeoutMs: 0,
+    // Manejo de sesiones y conflicto
+    restartOnAuthFail: true,
+    takeoverOnConflict: true,
+    takeoverTimeoutMs: 0,
 
-  // 👇 Usa un cache remoto de la versión Web para evitar incompatibilidades
-  webVersionCache: {
-    type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html'
-  },
-  // (Opcional) Si siguiera fallando, fija una versión concreta:
-  // webVersion: '2.3000.1027127011',
+    // Usa un cache remoto de la versión Web para evitar incompatibilidades
+    webVersionCache: {
+      type: 'remote',
+      remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html'
+    },
+    // (Opcional) Si siguiera fallando, fija una versión concreta:
+    // webVersion: '2.3000.1027127011',
 
-  puppeteer: {
-    headless: HEADLESS,
-    executablePath: CHROME_PATH,
-    protocolTimeout: 120000,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu'
-    ],
-  },
-});
-
+    puppeteer: {
+      headless: HEADLESS,
+      executablePath: CHROME_PATH,
+      protocolTimeout: 120000,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ],
+    },
+  });
 
   clients[id] = { client: c, qr: null, ready: false, state: 'INIT', authed: false };
+
+  // Depura carga de la UI
+  c.on('loading_screen', (percent, message) => {
+    console.log(`[${id}] ⏳ loading_screen: ${percent}% - ${message}`);
+  });
 
   // Eventos
   c.on('qr', async (qr) => {
@@ -143,7 +151,7 @@ function initClient(id) {
     }, 5000);
   });
 
-  // Watchdog
+  // Watchdog de estado real
   setInterval(async () => {
     try {
       const st = await c.getState(); // CONNECTED | OPENING | PAIRING | TIMEOUT | CONFLICT | UNLAUNCHED
@@ -316,7 +324,7 @@ app.post('/:acc/logout', async (req, res) => {
   const s = st(req.params.acc, res); if (!s) return;
   try {
     await s.client.logout();
-    fs.rmSync(ACCOUNTS[req.params.acc].sessionDir, { recursive: true, force: true });
+    fs.rmSync(path.join(SESSIONS_DIR, `session-${req.params.acc}`), { recursive: true, force: true });
     s.ready = false; s.qr = null; s.state = 'LOGGED_OUT'; s.authed = false;
     res.json({ success: true });
   } catch {
