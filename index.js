@@ -13,9 +13,11 @@ const Database = require("better-sqlite3");
 
 // ====== 1) Config ======
 const PORT = 8452;
-const API_BASE = "http://172.65.10.52:8000";
+// ↓↓↓ NUEVO BASE HTTPS:8100
+const API_BASE = "https://trackingbo.correos.gob.bo:8100";
 const API_TOKEN =
   "eZMlItx6mQMNZjxoijEvf7K3pYvGGXMvEHmQcqvtlAPOEAPgyKDVOpyF7JP0ilbK";
+
 const HEADLESS = true;
 
 const ACCOUNTS = {
