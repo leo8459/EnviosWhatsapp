@@ -38,6 +38,15 @@ const ACCOUNTS = {
   urbano3: { sessionDir: ".wwebjs_urbano_3", packagesPath: "/api/packagesRDD" },
   urbano4: { sessionDir: ".wwebjs_urbano_4", packagesPath: "/api/packagesRDD" },
   urbano5: { sessionDir: ".wwebjs_urbano_5", packagesPath: "/api/packagesRDD" },
+  dnd1: { sessionDir: ".wwebjs_dnd_1", packagesPath: "/api/packagesRDND" },
+  ventanilla71: {
+    sessionDir: ".wwebjs_ventanilla7_1",
+    packagesPath: "/api/packagesUENCOMIENDAS",
+  },
+  ventanilla72: {
+    sessionDir: ".wwebjs_ventanilla7_2",
+    packagesPath: "/api/packagesUENCOMIENDAS",
+  },
 };
 
 // ====== 2) DB (mensajes por cuenta) ======
@@ -68,8 +77,32 @@ db.prepare(
 
 // ====== 3) Estado ======
 const clients = {};
-let scheduledQueues = { wa1: [], wa2: [], wa3: [], sc1: [], urbano2: [],urbano3: [],urbano4: [],urbano5: [] };
-let isSending = { wa1: false, wa2: false, wa3: false, sc1: false, urbano2: false,urbano3: false,urbano4: false,urbano5: false };
+let scheduledQueues = {
+  wa1: [],
+  wa2: [],
+  wa3: [],
+  sc1: [],
+  urbano2: [],
+  urbano3: [],
+  urbano4: [],
+  urbano5: [],
+  dnd1: [],
+  ventanilla71: [],
+  ventanilla72: [],
+};
+let isSending = {
+  wa1: false,
+  wa2: false,
+  wa3: false,
+  sc1: false,
+  urbano2: false,
+  urbano3: false,
+  urbano4: false,
+  urbano5: false,
+  dnd1: false,
+  ventanilla71: false,
+  ventanilla72: false,
+};
 
 const SESSIONS_DIR = path.resolve(__dirname, "sessions");
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -217,7 +250,10 @@ async function fetchPackages(url) {
   // 1) Bearer
   let r = await fetch(url, {
     agent: url.startsWith("https://") ? httpsAgent : undefined,
-    headers: { Authorization: `Bearer ${API_TOKEN}`, Accept: "application/json" },
+    headers: {
+      Authorization: `Bearer ${API_TOKEN}`,
+      Accept: "application/json",
+    },
     redirect: "follow",
   });
 
@@ -231,7 +267,6 @@ async function fetchPackages(url) {
   }
   return r;
 }
-
 
 // ===== Rutas de cuenta
 app.get("/:acc/qr", (req, res) => {
@@ -455,20 +490,27 @@ app.get("/urbano4", (_req, res) =>
 app.get("/urbano5", (_req, res) =>
   res.sendFile(path.join(__dirname, "views", "urbano5.html"))
 );
+app.get("/dnd1", (_req, res) =>
+  res.sendFile(path.join(__dirname, "views", "dnd1.html"))
+);
+app.get("/ventanilla71", (_req, res) =>
+  res.sendFile(path.join(__dirname, "views", "ventanilla71.html"))
+);
+app.get("/ventanilla72", (_req, res) =>
+  res.sendFile(path.join(__dirname, "views", "ventanilla72.html"))
+);
 app.get("/", (_req, res) =>
   res.sendFile(path.join(__dirname, "views", "index.html"))
 );
 
 // ====== 404 JSON (evita HTML por defecto) ======
 app.use((req, res) => {
-  res
-    .status(404)
-    .json({
-      ok: false,
-      error: "route_not_found",
-      method: req.method,
-      url: req.originalUrl,
-    });
+  res.status(404).json({
+    ok: false,
+    error: "route_not_found",
+    method: req.method,
+    url: req.originalUrl,
+  });
 });
 
 // ====== Server ======

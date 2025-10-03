@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WhatsApp Bot – Cuenta 1</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <style>
+    :root { --primary:#006e51; --primary-200:#1aa57e; --surface:rgba(255,255,255,.9); --radius:1.25rem; }
+    body { display:flex; flex-direction:column; min-height:100vh; font-family:Inter,sans-serif;
+           background:linear-gradient(135deg,#e9f5ff 0%,#f4f8fb 50%,#fff 100%); }
+    .glass-card { background:var(--surface); backdrop-filter:blur(12px) saturate(180%);
+                  border:1px solid rgba(255,255,255,.25); border-radius:var(--radius);
+                  box-shadow:0 8px 24px rgba(0,0,0,.06); }
+    .scroll-y { max-height:270px; overflow-y:auto; }
+    .btn-primary { background:var(--primary); border:none; } .btn-primary:hover { background:var(--primary-200); }
+    .table thead { position:sticky; top:0; z-index:1; }
+  </style>
+
+  <script>const ACC = 'ventanilla72';</script>
+</head>
+<body>
+
+<div class="container my-3 d-flex flex-wrap gap-2 justify-content-end">
+  <input id="codigoScan" class="form-control w-auto"
+       placeholder="Pega / escanea CODIGO y Enter"
+       onkeydown="if(event.key==='Enter') agregarAPrelista()">
+
+  <button class="btn btn-success" onclick="enviarPorCodigo()">📤 Enviar por código</button>
+  <button id="btnTodos" class="btn btn-primary" onclick="enviarTodos()">🚀 Enviar TODOS</button>
+  <button class="btn btn-warning" onclick="mandarPrelista()">📨 Mandar Prelista</button>
+</div>
+
+<div class="container">
+  <ul id="prelista" class="list-group scroll-y mt-2"></ul>
+</div>
+
+<div id="alertas" class="container"></div>
+
+<main class="glass-card p-4 container mb-4">
+  <div class="row g-5">
+    <aside class="col-lg-4">
+      <div id="qr-container" class="small text-muted mb-4">⏳ Cargando QR…</div>
+
+      <h6 class="fw-semibold mb-2"><i class="bi bi-pencil-square me-1"></i>Nuevo mensaje</h6>
+      <textarea id="nuevo-mensaje" class="form-control mb-2" rows="3" placeholder="Escribe tu mensaje..."></textarea>
+      <button class="btn btn-primary w-100 mb-4" onclick="guardarMensaje()">
+        <i class="bi bi-save me-1"></i>Guardar
+      </button>
+
+      <h6 class="fw-semibold mb-2"><i class="bi bi-upload me-1"></i>Subir Excel</h6>
+      <form id="upload-form" enctype="multipart/form-data" class="d-grid gap-2">
+        <input type="file" name="excel" accept=".xlsx" class="form-control" required />
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-send-check me-1"></i>Enviar Mensajes
+        </button>
+      </form>
+      <div id="envio-status" class="small text-center mt-2"></div>
+    </aside>
+
+    <section class="col-lg-8">
+      <h6 class="fw-semibold mb-2"><i class="bi bi-chat-dots me-1"></i>Mensajes guardados</h6>
+      <ul id="lista-mensajes" class="list-group scroll-y mb-4"></ul>
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-semibold mb-0"><i class="bi bi-box-seam me-1"></i>Paquetes</h6>
+        <button class="btn btn-sm btn-outline-primary" onclick="cargarPackages()">Actualizar</button>
+      </div>
+      <div class="table-responsive scroll-y" style="max-height:300px">
+        <table id="tabla-packages" class="table table-hover table-sm align-middle mb-0">
+          <thead class="table-light"></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="w-100 text-center py-3 small">&copy; <span id="year"></span> – Bots Corp</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const api = p => `/${ACC}${p}`;
+let codeIdx = 1, telIdx = 2;
+let mensajesArr = [];
+
+function alerta(msg, type = "primary") {
+  document.getElementById("alertas").innerHTML =
+    `<div class="alert alert-${type} alert-dismissible fade show">
+      ${msg}<button class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+}
+function toggleBtn(dis) { document.getElementById("btnTodos").disabled = dis; }
+const randMsg = () => mensajesArr[Math.floor(Math.random() * mensajesArr.length)];
+
+async function mostrarQR() {
+  const t = setInterval(async () => {
+    try {
+      const d = await fetch(api('/qr')).then(r => r.json());
+      if (d.status === "qr") {
+        document.getElementById("qr-container").innerHTML =
+          `<img src="${d.src}" class="img-thumbnail" style="max-width:220px">`;
+      } else if (d.status === "connected") {
+        clearInterval(t);
+        document.getElementById("qr-container").innerHTML =
+          `<div class="alert alert-success d-flex justify-content-between align-items-center">
+             <span><i class="bi bi-check-circle-fill me-1"></i>Conectado</span>
+             <button class="btn btn-sm btn-outline-light text-danger" onclick="desconectar()">
+               <i class="bi bi-box-arrow-right me-1"></i>Salir
+             </button>
+           </div>`;
+      } else {
+        document.getElementById("qr-container").textContent = '⏳ Esperando QR…';
+      }
+    } catch {
+      document.getElementById("qr-container").textContent = '⚠️ Error consultando QR';
+    }
+  }, 2000);
+}
+
+async function guardarMensaje() {
+  const texto = document.getElementById("nuevo-mensaje").value.trim();
+  if (!texto) return;
+  const ok = await fetch(api('/mensajes'), {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texto })
+  }).then(r => r.json());
+  if (ok.success) {
+    document.getElementById("nuevo-mensaje").value = "";
+    cargarMensajes();
+  }
+}
+
+async function cargarMensajes() {
+  const data = await fetch(api('/mensajes')).then(r => r.json());
+  mensajesArr = data.map(m => m.texto);
+  const ul = document.getElementById("lista-mensajes"); ul.innerHTML = "";
+  data.forEach(m => {
+    ul.insertAdjacentHTML("beforeend",
+      `<li class="list-group-item d-flex justify-content-between align-items-center">
+         <span>${m.texto}</span>
+         <button class="btn btn-sm btn-danger" onclick="eliminarMensaje(${m.id})">
+           <i class="bi bi-trash-fill"></i>
+         </button>
+       </li>`);
+  });
+}
+
+async function eliminarMensaje(id) {
+  const ok = await fetch(api(`/mensajes/${id}`), { method: "DELETE" }).then(r => r.json());
+  if (ok.success) cargarMensajes();
+}
+
+async function cargarPackages() {
+  try {
+    const r = await fetch(api('/packages'));
+    const data = await r.json();
+    const thead = document.querySelector("#tabla-packages thead");
+    const tbody = document.querySelector("#tabla-packages tbody");
+    tbody.innerHTML = "";
+    if (!Array.isArray(data) || !data.length) { thead.innerHTML = ""; return; }
+
+    const cols = Object.keys(data[0]);
+    thead.innerHTML = "<tr>" + cols.map(c => `<th>${c}</th>`).join("") + "</tr>";
+    codeIdx = cols.findIndex(c => c.toUpperCase() === "CODIGO");
+    telIdx  = cols.findIndex(c => c.toUpperCase() === "TELEFONO");
+
+    data.forEach(p => {
+      tbody.insertAdjacentHTML("beforeend",
+        "<tr>" + cols.map(c => `<td>${p[c]}</td>`).join("") + "</tr>");
+    });
+  } catch {
+    alerta("No se pudieron cargar paquetes", "danger");
+  }
+}
+
+async function enviarTodos() {
+  if (!mensajesArr.length) return alerta("No hay mensajes guardados", "warning");
+  const health = await fetch(api('/health')).then(r=>r.json()).catch(()=>({ready:false}));
+  if (!health.ready) return alerta("La sesión de WhatsApp NO está conectada. Escanea el QR primero.", "danger");
+
+  toggleBtn(true);
+  const rows = [...document.querySelector("#tabla-packages tbody").rows];
+  let okCount = 0, failCount = 0;
+
+  for (const tr of rows) {
+    const tel = tr.cells[telIdx]?.textContent.replace(/\D/g, "");
+    if (/^\d{7,15}$/.test(tel)) {
+      const resp = await fetch(api('/send'), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: `591${tel}@c.us`, message: randMsg() })
+      });
+      const j = await resp.json().catch(()=>({success:false}));
+      if (resp.ok && j.success) okCount++; else failCount++;
+    }
+  }
+
+  alerta(`Envío terminado: ✅ ${okCount} / ⛔ ${failCount}`, failCount ? "warning" : "success");
+  toggleBtn(false);
+}
+
+async function enviarPorCodigo() {
+  if (!mensajesArr.length) return alerta("No hay mensajes guardados", "warning");
+  const health = await fetch(api('/health')).then(r=>r.json()).catch(()=>({ready:false}));
+  if (!health.ready) return alerta("La sesión de WhatsApp NO está conectada. Escanea el QR primero.", "danger");
+
+  const inp = document.getElementById("codigoScan");
+  const code = inp.value.trim().toUpperCase(); inp.value = "";
+  if (!code) return;
+  const rows = [...document.querySelector("#tabla-packages tbody").rows];
+  const row = rows.find(r => r.cells[codeIdx]?.textContent.trim().toUpperCase() === code);
+  if (!row) return alerta("Código no encontrado", "warning");
+  const tel = row.cells[telIdx].textContent.replace(/\D/g, "");
+  const resp = await fetch(api('/send'), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ to: `591${tel}@c.us`, message: randMsg() })
+  });
+  const j = await resp.json().catch(()=>({success:false}));
+  if (resp.ok && j.success) {
+    row.parentElement.prepend(row);
+    alerta(`Mensaje enviado a ${tel}`, "success");
+  } else alerta("Error al enviar", "danger");
+}
+
+const prelista = [];
+function agregarAPrelista() {
+  const inp = document.getElementById("codigoScan");
+  const code = inp.value.trim().toUpperCase(); inp.value = "";
+  if (!code) return;
+  const rows = [...document.querySelector("#tabla-packages tbody").rows];
+  const row = rows.find(r => r.cells[codeIdx]?.textContent.trim().toUpperCase() === code);
+  if (!row) return alerta("Código no encontrado", "warning");
+
+  const tel = row.cells[telIdx].textContent.replace(/\D/g, "");
+  const full = `591${tel}@c.us`;
+  if (!prelista.includes(full)) prelista.push(full);
+  renderPrelista();
+}
+
+function renderPrelista() {
+  const ul = document.getElementById("prelista");
+  ul.innerHTML = "";
+  prelista.forEach((n, i) => {
+    ul.insertAdjacentHTML("beforeend",
+      `<li class="list-group-item d-flex justify-content-between align-items-center">
+        ${n}
+        <button class="btn btn-sm btn-outline-danger" onclick="prelista.splice(${i},1); renderPrelista()">
+          <i class="bi bi-x"></i>
+        </button>
+      </li>`);
+  });
+}
+
+async function mandarPrelista() {
+  if (!mensajesArr.length) return alerta("No hay mensajes guardados", "warning");
+  if (!prelista.length) return alerta("Prelista vacía", "warning");
+  const health = await fetch(api('/health')).then(r=>r.json()).catch(()=>({ready:false}));
+  if (!health.ready) return alerta("La sesión de WhatsApp NO está conectada. Escanea el QR primero.", "danger");
+
+  toggleBtn(true);
+  let i = 0, okCount = 0, failCount = 0;
+
+  const enviarConEspera = async () => {
+    if (i >= prelista.length) {
+      alerta(`Prelista: ✅ ${okCount} / ⛔ ${failCount}`, failCount ? "warning" : "success");
+      toggleBtn(false);
+      prelista.length = 0;
+      renderPrelista();
+      return;
+    }
+    const to = prelista[i];
+    try {
+      const resp = await fetch(api('/send'), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, message: randMsg() })
+      });
+      const j = await resp.json().catch(()=>({success:false}));
+      if (resp.ok && j.success) okCount++; else failCount++;
+      console.log("📤 enviado a", to, j);
+    } catch {
+      failCount++;
+      console.log("⛔ fallo a", to);
+    }
+    i++;
+    const randomExtra = Math.floor(Math.random() * 120000); // hasta 2 minutos
+    setTimeout(enviarConEspera, 180000 + randomExtra); // 3 min + aleatorio
+  };
+  enviarConEspera();
+}
+
+async function desconectar() {
+  if (!confirm("¿Cerrar sesión?")) return;
+  const ok = await fetch(api('/logout'), { method: "POST" }).then(r => r.json());
+  if (ok.success) location.reload();
+}
+
+document.getElementById("year").textContent = new Date().getFullYear();
+mostrarQR(); cargarMensajes(); cargarPackages();
+
+// Excel por cuenta
+document.getElementById('upload-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const fd = new FormData(form);
+  const r = await fetch(api('/enviar-excel'), { method: 'POST', body: fd }).then(r => r.json());
+  document.getElementById('envio-status').textContent = r.success ? '✅ Envío iniciado' : `⛔ ${r.message || 'Error'}`;
+  if (r.success) form.reset();
+});
+</script>
+</body>
+</html>
