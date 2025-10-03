@@ -1,3 +1,4 @@
-2025/10/02-15:46:52.316 406c Reusing MANIFEST C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa1\Default\Session Storage/MANIFEST-000001
-2025/10/02-15:46:52.316 406c Recovering log #3
-2025/10/02-15:46:52.317 406c Reusing old log C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa1\Default\Session Storage/000003.log 
+2025/10/03-12:25:07.145 38a0 Creating DB C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa1\Default\Session Storage since it was missing.
+2025/10/03-12:25:09.164 38a0 Reusing MANIFEST C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa1\Default\Session Storage/MANIFEST-000001
+2025/10/03-12:25:09.165 38a0 Recovering log #3
+2025/10/03-12:25:09.165 38a0 Reusing old log C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa1\Default\Session Storage/000003.log 
