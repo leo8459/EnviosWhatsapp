@@ -1,0 +1,4 @@
+2025/10/02-15:54:39.915 57d0 Creating DB C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa1\Default\shared_proto_db since it was missing.
+2025/10/02-15:54:40.043 57d0 Reusing MANIFEST C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa1\Default\shared_proto_db/MANIFEST-000001
+2025/10/02-15:54:40.048 57d0 Recovering log #3
+2025/10/02-15:54:40.049 57d0 Reusing old log C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa1\Default\shared_proto_db/000003.log 

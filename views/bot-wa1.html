@@ -17,7 +17,6 @@
                   border:1px solid rgba(255,255,255,.25); border-radius:var(--radius);
                   box-shadow:0 8px 24px rgba(0,0,0,.06); }
     .scroll-y { max-height:270px; overflow-y:auto; }
-    .spin { animation:spin 1s linear infinite; } @keyframes spin { 100% { transform: rotate(360deg); } }
     .btn-primary { background:var(--primary); border:none; } .btn-primary:hover { background:var(--primary-200); }
     .table thead { position:sticky; top:0; z-index:1; }
   </style>
@@ -68,7 +67,7 @@
       <ul id="lista-mensajes" class="list-group scroll-y mb-4"></ul>
 
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="fw-semibold mb-0"><i class="bi bi-box-seam me-1"></i>Paquetes RDD</h6>
+        <h6 class="fw-semibold mb-0"><i class="bi bi-box-seam me-1"></i>Paquetes</h6>
         <button class="btn btn-sm btn-outline-primary" onclick="cargarPackages()">Actualizar</button>
       </div>
       <div class="table-responsive scroll-y" style="max-height:300px">
@@ -88,7 +87,6 @@
 const api = p => `/${ACC}${p}`;
 let codeIdx = 1, telIdx = 2;
 let mensajesArr = [];
-const prelista = [];
 
 function alerta(msg, type = "primary") {
   document.getElementById("alertas").innerHTML =
@@ -127,7 +125,7 @@ async function mostrarQR() {
 async function guardarMensaje() {
   const texto = document.getElementById("nuevo-mensaje").value.trim();
   if (!texto) return;
-  const ok = await fetch("/mensajes", {
+  const ok = await fetch(api('/mensajes'), {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ texto })
   }).then(r => r.json());
@@ -138,7 +136,7 @@ async function guardarMensaje() {
 }
 
 async function cargarMensajes() {
-  const data = await fetch("/mensajes").then(r => r.json());
+  const data = await fetch(api('/mensajes')).then(r => r.json());
   mensajesArr = data.map(m => m.texto);
   const ul = document.getElementById("lista-mensajes"); ul.innerHTML = "";
   data.forEach(m => {
@@ -153,7 +151,7 @@ async function cargarMensajes() {
 }
 
 async function eliminarMensaje(id) {
-  const ok = await fetch(`/mensajes/${id}`, { method: "DELETE" }).then(r => r.json());
+  const ok = await fetch(api(`/mensajes/${id}`), { method: "DELETE" }).then(r => r.json());
   if (ok.success) cargarMensajes();
 }
 
@@ -169,7 +167,7 @@ async function cargarPackages() {
     const cols = Object.keys(data[0]);
     thead.innerHTML = "<tr>" + cols.map(c => `<th>${c}</th>`).join("") + "</tr>";
     codeIdx = cols.findIndex(c => c.toUpperCase() === "CODIGO");
-    telIdx = cols.findIndex(c => c.toUpperCase() === "TELEFONO");
+    telIdx  = cols.findIndex(c => c.toUpperCase() === "TELEFONO");
 
     data.forEach(p => {
       tbody.insertAdjacentHTML("beforeend",
@@ -230,6 +228,7 @@ async function enviarPorCodigo() {
   } else alerta("Error al enviar", "danger");
 }
 
+const prelista = [];
 function agregarAPrelista() {
   const inp = document.getElementById("codigoScan");
   const code = inp.value.trim().toUpperCase(); inp.value = "";
@@ -304,6 +303,16 @@ async function desconectar() {
 
 document.getElementById("year").textContent = new Date().getFullYear();
 mostrarQR(); cargarMensajes(); cargarPackages();
+
+// Excel por cuenta
+document.getElementById('upload-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const fd = new FormData(form);
+  const r = await fetch(api('/enviar-excel'), { method: 'POST', body: fd }).then(r => r.json());
+  document.getElementById('envio-status').textContent = r.success ? '✅ Envío iniciado' : `⛔ ${r.message || 'Error'}`;
+  if (r.success) form.reset();
+});
 </script>
 </body>
 </html>
