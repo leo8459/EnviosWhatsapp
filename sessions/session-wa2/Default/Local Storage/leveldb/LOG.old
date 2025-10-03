@@ -1,0 +1,6 @@
+2025/10/03-15:23:05.726 51e4 Reusing MANIFEST C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa2\Default\Local Storage\leveldb/MANIFEST-000001
+2025/10/03-15:23:05.727 51e4 Recovering log #6
+2025/10/03-15:23:05.727 51e4 Reusing old log C:\xampp\htdocs\EnviosWhatsapp\sessions\session-wa2\Default\Local Storage\leveldb/000006.log 
+2025/10/03-15:24:06.950 5448 Level-0 table #8: started
+2025/10/03-15:24:07.003 5448 Level-0 table #8: 17668 bytes OK
+2025/10/03-15:24:07.052 5448 Delete type=0 #6

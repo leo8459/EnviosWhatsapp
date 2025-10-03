@@ -1,7 +1,5 @@
-// test.js
 import fetch from 'node-fetch';     // npm i node-fetch@3
-
-const url   = 'https://trackingbo.correos.gob.bo:8100/api/packagesRDD';
+const url   = 'https://172.65.10.51:8100/public/api/packagesRDD'; // <- AJUSTA al 100 %
 const token = 'eZMlItx6mQMNZjxoijEvf7K3pYvGGXMvEHmQcqvtlAPOEAPgyKDVOpyF7JP0ilbK';
 
 (async () => {

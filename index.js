@@ -14,7 +14,7 @@ const Database = require("better-sqlite3");
 // ====== 1) Config ======
 const PORT = 8452;
 // ↓↓↓ NUEVO BASE HTTPS:8100
-const API_BASE = "https://trackingbo.correos.gob.bo:8100";
+const API_BASE = "https://172.65.10.51:8100";
 const API_TOKEN =
   "eZMlItx6mQMNZjxoijEvf7K3pYvGGXMvEHmQcqvtlAPOEAPgyKDVOpyF7JP0ilbK";
 
@@ -210,18 +210,28 @@ function st(acc, res) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // --- util paquetes
+const https = require("https");
+const httpsAgent = new https.Agent({ rejectUnauthorized: false }); // SOLO pruebas. En prod, instala la CA.
+
 async function fetchPackages(url) {
+  // 1) Bearer
   let r = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${API_TOKEN}`,
-      Accept: "application/json",
-    },
+    agent: url.startsWith("https://") ? httpsAgent : undefined,
+    headers: { Authorization: `Bearer ${API_TOKEN}`, Accept: "application/json" },
+    redirect: "follow",
   });
-  if (r.status !== 401) return r;
-  return fetch(url, {
-    headers: { token: API_TOKEN, Accept: "application/json" },
-  });
+
+  // 2) Si la API responde 401, reintenta con header `token`
+  if (r.status === 401) {
+    r = await fetch(url, {
+      agent: url.startsWith("https://") ? httpsAgent : undefined,
+      headers: { token: API_TOKEN, Accept: "application/json" },
+      redirect: "follow",
+    });
+  }
+  return r;
 }
+
 
 // ===== Rutas de cuenta
 app.get("/:acc/qr", (req, res) => {
